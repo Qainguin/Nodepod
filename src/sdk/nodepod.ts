@@ -175,6 +175,7 @@ export class Nodepod {
     const packages = new DependencyInstaller(volume, { snapshotCache });
     const proxy = getProxyInstance({
       onServerReady: opts.onServerReady,
+      onServerStop: opts.onServerStop,
     });
 
     // set up fetch domain whitelist (null = allow everything)

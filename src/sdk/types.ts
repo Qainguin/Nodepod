@@ -9,6 +9,7 @@ export interface NodepodOptions {
   workdir?: string;
   swUrl?: string;
   onServerReady?: (port: number, url: string) => void;
+  onServerStop?: (port: number, url: string) => void;
   /** Show a small "nodepod" watermark link in preview iframes. Defaults to true. */
   watermark?: boolean;
   /** Memory optimization settings. Omit to use defaults. */

@@ -38,6 +38,7 @@ export interface RegisteredServer {
 export interface ProxyOptions {
   baseUrl?: string;
   onServerReady?: (port: number, url: string) => void;
+  onServerStop?: (port: number, url: string) => void;
 }
 
 export interface ServiceWorkerConfig {
@@ -92,6 +93,9 @@ export class RequestProxy extends EventEmitter {
   }
 
   unregister(port: number): void {
+    const url = this.serverUrl(port);
+    this.emit("server-stop", port, url);
+    this.opts.onServerStop?.(port, url);
     this.registry.delete(port);
     this.notifySW("server-unregistered", { port });
   }
