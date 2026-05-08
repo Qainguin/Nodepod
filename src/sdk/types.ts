@@ -68,10 +68,13 @@ export interface TerminalTheme {
 
 export interface TerminalOptions {
   // xterm.js classes are peer deps, passed in as constructors
-  Terminal: any;
+  Terminal?: any;
   FitAddon?: any;
   WebglAddon?: any;
   SerializeAddon?: any;
+  // wterm classes are also peer deps, passed in as constructors
+  WTerm?: any;
+  core?: any;
   theme?: TerminalTheme;
   fontSize?: number;
   fontFamily?: string;

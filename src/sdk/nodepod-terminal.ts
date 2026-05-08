@@ -130,12 +130,38 @@ export class NodepodTerminal {
 
   /* ---- Public API ---- */
 
-  attach(target: HTMLElement | string): void {
+  async attach(target: HTMLElement | string): Promise<void> {
     const container =
       typeof target === "string"
         ? (document.querySelector(target) as HTMLElement)
         : target;
     if (!container) throw new Error(`Terminal target not found: ${target}`);
+
+    if (this._opts.WTerm) {
+      const WTerm = this._opts.WTerm;
+
+      this._term = new WTerm(container, {
+        cols: 80,
+        rows: 24,
+        cursorBlink: true,
+        autoResize: true,
+        onData: (data: string) => this._handleInput(data),
+        onResize: (cols: number, rows: number) => {
+          this._lastNotifiedCols = cols;
+          this._lastNotifiedRows = rows;
+          this._wiring?.onResize?.(cols, rows);
+        },
+      });
+
+      await this._term.init();
+
+      if (this._serializedBuffer) {
+        this._term.write(this._serializedBuffer);
+      }
+
+      this._term.focus();
+      return;
+    }
 
     const TermCtor = this._opts.Terminal;
 
@@ -248,7 +274,11 @@ export class NodepodTerminal {
       this._serializeAddon = null;
     }
     if (this._term) {
-      this._term.dispose();
+      if (typeof this._term.destroy === "function") {
+        this._term.destroy(); // wterm
+      } else {
+        this._term.dispose?.(); // xterm
+      }
       this._term = null;
     }
     this._fitAddon = null;
