@@ -1,5 +1,5 @@
 // Interactive terminal with line editing, history, raw/cooked mode, etc.
-// xterm.js is a peer dep -- passed in via TerminalOptions, not imported here.
+// Terminal emulators are peer deps -- passed in via TerminalOptions, not imported here.
 
 import type { TerminalOptions, TerminalTheme } from "./types";
 import { DEFAULT_TERMINAL } from "../constants/config";
@@ -89,6 +89,7 @@ export class NodepodTerminal {
   private _theme: TerminalTheme;
   private _opts: TerminalOptions;
   private _wiring: TerminalWiring | null = null;
+  ready: Promise<void> = Promise.resolve();
 
   constructor(opts: TerminalOptions) {
     this._opts = opts;
@@ -111,11 +112,11 @@ export class NodepodTerminal {
   }
 
   _getCols(): number {
-    return this._term?.cols ?? 80;
+    return this._term?.cols ?? (this._lastNotifiedCols > 0 ? this._lastNotifiedCols : 80);
   }
 
   _getRows(): number {
-    return this._term?.rows ?? 24;
+    return this._term?.rows ?? (this._lastNotifiedRows > 0 ? this._lastNotifiedRows : 24);
   }
 
   _writeOutput(text: string, isError = false): void {
@@ -137,7 +138,34 @@ export class NodepodTerminal {
         : target;
     if (!container) throw new Error(`Terminal target not found: ${target}`);
 
+    if (this._opts.WTerm) {
+      this._term = new this._opts.WTerm(container, {
+        cols: this._getCols(),
+        rows: this._getRows(),
+        cursorBlink: true,
+        autoResize: true,
+        onData: (data: string | Uint8Array) =>
+          this._handleInput(typeof data === "string" ? data : new TextDecoder().decode(data)),
+        onResize: (cols: number, rows: number) => {
+          this._lastNotifiedCols = cols;
+          this._lastNotifiedRows = rows;
+          this._wiring?.onResize?.(cols, rows);
+        },
+      });
+      const write = this._term.write.bind(this._term);
+      this._term.write = (data: string | Uint8Array) => {
+        this._serializedBuffer += typeof data === "string" ? data : new TextDecoder().decode(data);
+        write(data);
+      };
+      this.ready = (this._term.init?.() ?? Promise.resolve()).then(() => {
+        if (this._serializedBuffer) write(this._serializedBuffer);
+        this._term.focus?.();
+      });
+      return;
+    }
+
     const TermCtor = this._opts.Terminal;
+    if (!TermCtor) throw new Error("createTerminal requires Terminal or WTerm");
 
     this._term = new TermCtor({
       cursorBlink: true,
@@ -248,7 +276,8 @@ export class NodepodTerminal {
       this._serializeAddon = null;
     }
     if (this._term) {
-      this._term.dispose();
+      this._term.dispose?.();
+      this._term.destroy?.();
       this._term = null;
     }
     this._fitAddon = null;
@@ -256,7 +285,7 @@ export class NodepodTerminal {
 
   clear(): void {
     if (!this._term) return;
-    this._term.clear();
+    this._term.clear?.() ?? this._term.write("\x1bc");
     if (!this._running) this._term.write(this._promptFn(this._cwd));
   }
 
@@ -269,7 +298,7 @@ export class NodepodTerminal {
 
   setTheme(theme: Partial<TerminalTheme>): void {
     this._theme = { ...this._theme, ...theme };
-    if (this._term) this._term.options.theme = this._theme;
+    if (this._term?.options) this._term.options.theme = this._theme;
   }
 
   fit(): void {
@@ -288,7 +317,7 @@ export class NodepodTerminal {
   }
 
   writeln(text: string): void {
-    this._term?.writeln(text);
+    this._term?.writeln?.(text) ?? this._term?.write(`${text}\r\n`);
   }
 
   showPrompt(): void {

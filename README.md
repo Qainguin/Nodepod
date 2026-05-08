@@ -103,6 +103,16 @@ const terminal = nodepod.createTerminal({ Terminal, FitAddon });
 terminal.attach('#terminal-container');
 ```
 
+Or use wterm:
+
+```typescript
+import { WTerm } from '@wterm/dom';
+import '@wterm/dom/css';
+
+const terminal = nodepod.createTerminal({ WTerm });
+terminal.attach('#terminal-container');
+```
+
 ### npm packages
 
 ```typescript
