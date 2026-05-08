@@ -106,8 +106,13 @@ export class NodepodTerminal {
     this._running = running;
   }
 
+  private _write(data: string): void {
+    this._serializedBuffer += data;
+    this._term?.write(data);
+  }
+
   _writePrompt(): void {
-    this._term?.write(this._promptFn(this._cwd));
+    this.write(this._promptFn(this._cwd));
   }
 
   _getCols(): number {
@@ -122,9 +127,9 @@ export class NodepodTerminal {
     if (!this._term) return;
     const escaped = text.replace(/\r?\n/g, "\r\n");
     if (isError) {
-      this._term.write("\x1b[31m" + escaped + "\x1b[0m");
+      this._write("\x1b[31m" + escaped + "\x1b[0m");
     } else {
-      this._term.write(escaped);
+      this._write(escaped);
     }
   }
 
@@ -287,7 +292,7 @@ export class NodepodTerminal {
   clear(): void {
     if (!this._term) return;
     this._term.clear();
-    if (!this._running) this._term.write(this._promptFn(this._cwd));
+    if (!this._running) this._write(this._promptFn(this._cwd));
   }
 
   input(text: string): void {
@@ -314,15 +319,15 @@ export class NodepodTerminal {
   }
 
   write(text: string): void {
-    this._term?.write(text);
+    this.write(text);
   }
 
   writeln(text: string): void {
-    this._term?.writeln(text);
+    this._write(text + "\r\n");
   }
 
   showPrompt(): void {
-    this._term?.write(this._promptFn(this._cwd));
+    this._write(this._promptFn(this._cwd));
   }
 
   setCwd(cwd: string): void {
@@ -350,7 +355,7 @@ export class NodepodTerminal {
           abort.abort();
           // Don't clear activeAbort -- nodepod.ts checks it to skip duplicate prompt
         }
-        this._term.write("^C\r\n");
+        this._write("^C\r\n");
         this._running = false;
         this._writePrompt();
         return;
@@ -367,13 +372,13 @@ export class NodepodTerminal {
           const ch = data[i];
           const code = ch.charCodeAt(0);
           if (ch === "\r" || ch === "\n") {
-            this._term.write("\r\n");
+            this._write("\r\n");
             sendStdin("\n");
           } else if (code === 127 || code === 8) {
-            this._term.write("\b \b");
+            this._write("\b \b");
             sendStdin("\x7f");
           } else if (code >= 32) {
-            this._term.write(ch);
+            this._write(ch);
             sendStdin(ch);
           } else {
             // Control chars -- send remainder as-is
@@ -398,15 +403,15 @@ export class NodepodTerminal {
       } else if (code === 127 || code === 8) {
         if (this._lineBuffer.length > 0) {
           this._lineBuffer = this._lineBuffer.slice(0, -1);
-          this._term.write("\b \b");
+          this._write("\b \b");
         }
       } else if (code === 3) {
         this._lineBuffer = "";
-        this._term.write("^C");
+        this._write("^C");
         this._writePrompt();
       } else if (code === 12) {
         this._term.clear();
-        this._term.write(this._promptFn(this._cwd) + this._lineBuffer);
+        this._write(this._promptFn(this._cwd) + this._lineBuffer);
       } else if (ch === "\x1b" && i + 2 < data.length && data[i + 1] === "[") {
         const arrow = data[i + 2];
         i += 2;
@@ -416,7 +421,7 @@ export class NodepodTerminal {
         this._handleTab();
       } else if (code >= 32) {
         this._lineBuffer += ch;
-        this._term.write(ch);
+        this._write(ch);
         this._tabCount = 0;
       }
     }
@@ -450,11 +455,11 @@ export class NodepodTerminal {
 
   private _replaceLineWith(text: string): void {
     const prompt = this._promptFn(this._cwd);
-    this._term.write(
+    this._write(
       "\r" + prompt + " ".repeat(this._lineBuffer.length) + "\r" + prompt,
     );
     this._lineBuffer = text;
-    this._term.write(text);
+    this._write(text);
   }
 
   /* ---- tab completion ---- */
@@ -520,9 +525,9 @@ export class NodepodTerminal {
     // erase what's there, then write the replacement
     const toErase = oldLen - tokenStart;
     if (toErase > 0) {
-      this._term.write("\b".repeat(toErase) + " ".repeat(toErase) + "\b".repeat(toErase));
+      this._write("\b".repeat(toErase) + " ".repeat(toErase) + "\b".repeat(toErase));
     }
-    this._term.write(replacement);
+    this._write(replacement);
     this._lineBuffer = newBuffer;
   }
 
@@ -531,28 +536,28 @@ export class NodepodTerminal {
     const display = matches.map((m) =>
       m.endsWith(" ") ? m.slice(0, -1) : m,
     );
-    this._term.write("\r\n");
+    this._write("\r\n");
     const cols = this._getCols();
     const maxLen = display.reduce((a, s) => Math.max(a, s.length), 0);
     const colWidth = maxLen + 2;
     const perRow = Math.max(1, Math.floor(cols / colWidth));
     for (let i = 0; i < display.length; i++) {
       const cell = display[i].padEnd(colWidth, " ");
-      this._term.write(cell);
-      if ((i + 1) % perRow === 0) this._term.write("\r\n");
+      this._write(cell);
+      if ((i + 1) % perRow === 0) this._write("\r\n");
     }
-    if (display.length % perRow !== 0) this._term.write("\r\n");
+    if (display.length % perRow !== 0) this._write("\r\n");
   }
 
   private _redrawLine(): void {
-    this._term.write(this._promptFn(this._cwd) + this._lineBuffer);
+    this._write(this._promptFn(this._cwd) + this._lineBuffer);
   }
 
   /* ---- Command execution ---- */
 
   private async _executeCommand(cmd: string): Promise<void> {
     if (!cmd.trim()) {
-      this._term?.write("\r\n" + this._promptFn(this._cwd));
+      this._write("\r\n" + this._promptFn(this._cwd));
       return;
     }
     this._history.push(cmd);
