@@ -247,7 +247,8 @@ export class NodepodTerminal {
     const cols = this._term.cols;
     const rows = this._term.rows;
     if (!cols || !rows) return;
-    if (cols === this._lastNotifiedCols && rows === this._lastNotifiedRows) return;
+    if (cols === this._lastNotifiedCols && rows === this._lastNotifiedRows)
+      return;
     this._lastNotifiedCols = cols;
     this._lastNotifiedRows = rows;
     try {
@@ -319,7 +320,7 @@ export class NodepodTerminal {
   }
 
   write(text: string): void {
-    this.write(text);
+    this._write(text);
   }
 
   writeln(text: string): void {
@@ -525,7 +526,9 @@ export class NodepodTerminal {
     // erase what's there, then write the replacement
     const toErase = oldLen - tokenStart;
     if (toErase > 0) {
-      this._write("\b".repeat(toErase) + " ".repeat(toErase) + "\b".repeat(toErase));
+      this._write(
+        "\b".repeat(toErase) + " ".repeat(toErase) + "\b".repeat(toErase),
+      );
     }
     this._write(replacement);
     this._lineBuffer = newBuffer;
@@ -533,9 +536,7 @@ export class NodepodTerminal {
 
   private _printMatches(matches: string[]): void {
     // drop the trailing space on display
-    const display = matches.map((m) =>
-      m.endsWith(" ") ? m.slice(0, -1) : m,
-    );
+    const display = matches.map((m) => (m.endsWith(" ") ? m.slice(0, -1) : m));
     this._write("\r\n");
     const cols = this._getCols();
     const maxLen = display.reduce((a, s) => Math.max(a, s.length), 0);
