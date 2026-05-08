@@ -111,6 +111,20 @@ import '@wterm/dom/css';
 
 const terminal = nodepod.createTerminal({ WTerm });
 terminal.attach('#terminal-container');
+await terminal.ready;
+```
+
+wterm custom cores work too:
+
+```typescript
+import { WTerm } from '@wterm/dom';
+import { GhosttyCore } from '@wterm/ghostty';
+import '@wterm/dom/css';
+
+const core = await GhosttyCore.load();
+const terminal = nodepod.createTerminal({ WTerm, core });
+terminal.attach('#terminal-container');
+await terminal.ready;
 ```
 
 ### npm packages

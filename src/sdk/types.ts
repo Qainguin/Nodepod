@@ -70,6 +70,8 @@ export interface TerminalOptions {
   // terminal classes are peer deps, passed in as constructors
   Terminal?: any;
   WTerm?: any;
+  core?: any;
+  wasmUrl?: string;
   FitAddon?: any;
   WebglAddon?: any;
   SerializeAddon?: any;

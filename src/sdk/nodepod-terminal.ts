@@ -142,6 +142,8 @@ export class NodepodTerminal {
       this._term = new this._opts.WTerm(container, {
         cols: this._getCols(),
         rows: this._getRows(),
+        core: this._opts.core,
+        wasmUrl: this._opts.wasmUrl,
         cursorBlink: true,
         autoResize: true,
         onData: (data: string | Uint8Array) =>
