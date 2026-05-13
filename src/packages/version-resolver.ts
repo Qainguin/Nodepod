@@ -556,7 +556,7 @@ async function installPackageAt(
   }
 
   const edgeList = Object.entries(edges);
-  const PARALLEL_LIMIT = 8;
+  const PARALLEL_LIMIT = 64;
 
   for (let start = 0; start < edgeList.length; start += PARALLEL_LIMIT) {
     const chunk = edgeList.slice(start, start + PARALLEL_LIMIT);

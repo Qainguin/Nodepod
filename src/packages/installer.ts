@@ -325,7 +325,7 @@ export class DependencyInstaller {
     }
 
     // Safe to batch aggressively since extract + transform are offloaded to workers
-    const WORKER_COUNT = 12;
+    const WORKER_COUNT = 32;
     onProgress?.(`Downloading ${pending.length} package(s)...`);
 
     for (let offset = 0; offset < pending.length; offset += WORKER_COUNT) {

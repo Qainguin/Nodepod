@@ -17,6 +17,7 @@ import type {
 let esbuildEngine: any = null;
 let pakoModule: any = null;
 let initialized = false;
+let esbuildInitialized = false;
 
 import { CDN_ESBUILD_ESM, CDN_ESBUILD_BINARY, cdnImport } from "../constants/cdn-urls";
 import { CDN_PAKO } from "../constants/config";
@@ -24,6 +25,41 @@ import { CDN_PAKO } from "../constants/config";
 const ESBUILD_ESM_URL = CDN_ESBUILD_ESM;
 const ESBUILD_WASM_URL = CDN_ESBUILD_BINARY;
 const PAKO_URL = CDN_PAKO;
+
+async function ensurePako(): Promise<void> {
+  if (pakoModule) return;
+  const pakoMod = await cdnImport(PAKO_URL);
+  pakoModule =
+    pakoMod.inflate
+      ? pakoMod
+      : pakoMod.default?.inflate
+        ? pakoMod.default
+        : pakoMod.default?.default?.inflate
+          ? pakoMod.default.default
+          : pakoMod;
+}
+
+async function ensureEsbuild(): Promise<void> {
+  if (esbuildInitialized) return;
+
+  const esbuildMod = await cdnImport(ESBUILD_ESM_URL);
+  esbuildEngine = esbuildMod.default || esbuildMod;
+
+  try {
+    await esbuildEngine.initialize({ wasmURL: ESBUILD_WASM_URL });
+  } catch (err: any) {
+    if (
+      !(
+        err instanceof Error &&
+        err.message.includes('Cannot call "initialize" more than once')
+      )
+    ) {
+      throw err;
+    }
+  }
+
+  esbuildInitialized = true;
+}
 
 // base64 helpers duplicated from helpers/byte-encoding.ts
 
@@ -168,30 +204,12 @@ const workerEndpoint: OffloadWorkerEndpoint = {
   async init(): Promise<void> {
     if (initialized) return;
 
-    const pakoMod = await cdnImport(PAKO_URL);
-    pakoModule = pakoMod.default || pakoMod;
-
-    const esbuildMod = await cdnImport(ESBUILD_ESM_URL);
-    esbuildEngine = esbuildMod.default || esbuildMod;
-
-    try {
-      await esbuildEngine.initialize({ wasmURL: ESBUILD_WASM_URL });
-    } catch (err: any) {
-      if (
-        !(
-          err instanceof Error &&
-          err.message.includes('Cannot call "initialize" more than once')
-        )
-      ) {
-        throw err;
-      }
-    }
-
+    await ensurePako();
     initialized = true;
   },
 
   async transform(task: TransformTask): Promise<TransformResult> {
-    if (!esbuildEngine) throw new Error("Worker not initialized");
+    await ensureEsbuild();
 
     const opts = task.options || {};
     let loader: string = opts.loader || "js";
@@ -273,7 +291,7 @@ const workerEndpoint: OffloadWorkerEndpoint = {
   },
 
   async extract(task: ExtractTask): Promise<ExtractResult> {
-    if (!pakoModule) throw new Error("Worker not initialized");
+    await ensurePako();
 
     const response = await fetch(task.tarballUrl);
     if (!response.ok) {
@@ -344,7 +362,7 @@ const workerEndpoint: OffloadWorkerEndpoint = {
   },
 
   async build(task: BuildTask): Promise<BuildResult> {
-    if (!esbuildEngine) throw new Error("Worker not initialized");
+    await ensureEsbuild();
 
     const fileMap = new Map<string, string>();
     for (const [p, content] of Object.entries(task.files)) {

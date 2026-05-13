@@ -18,6 +18,36 @@ const cdnImport = new Function("url", "return import(url)");
 let esbuildEngine = null;
 let pakoModule = null;
 let _initialized = false;
+let esbuildInitialized = false;
+
+async function ensurePako() {
+  if (pakoModule) return;
+  const pakoMod = await cdnImport(PAKO_URL);
+  pakoModule = pakoMod.inflate
+    ? pakoMod
+    : pakoMod.default && pakoMod.default.inflate
+      ? pakoMod.default
+      : pakoMod.default && pakoMod.default.default && pakoMod.default.default.inflate
+        ? pakoMod.default.default
+        : pakoMod;
+}
+
+async function ensureEsbuild() {
+  if (esbuildInitialized) return;
+
+  const esbuildMod = await cdnImport(ESBUILD_ESM_URL);
+  esbuildEngine = esbuildMod.default || esbuildMod;
+
+  try {
+    await esbuildEngine.initialize({ wasmURL: ESBUILD_WASM_URL });
+  } catch (err) {
+    if (!(err instanceof Error && err.message.includes('Cannot call "initialize" more than once'))) {
+      throw err;
+    }
+  }
+
+  esbuildInitialized = true;
+}
 
 // minimal Comlink-compatible expose() — implements the wire protocol that comlink.wrap() speaks on the main thread
 function miniExpose(obj) {
@@ -172,25 +202,12 @@ const endpoint = {
   async init() {
     if (_initialized) return;
 
-    const pakoMod = await cdnImport(PAKO_URL);
-    pakoModule = pakoMod.default || pakoMod;
-
-    const esbuildMod = await cdnImport(ESBUILD_ESM_URL);
-    esbuildEngine = esbuildMod.default || esbuildMod;
-
-    try {
-      await esbuildEngine.initialize({ wasmURL: ESBUILD_WASM_URL });
-    } catch (err) {
-      if (!(err instanceof Error && err.message.includes('Cannot call "initialize" more than once'))) {
-        throw err;
-      }
-    }
-
+    await ensurePako();
     _initialized = true;
   },
 
   async transform(task) {
-    if (!esbuildEngine) throw new Error("Worker not initialized");
+    await ensureEsbuild();
 
     const opts = task.options || {};
     let loader = opts.loader || "js";
@@ -234,7 +251,7 @@ const endpoint = {
   },
 
   async extract(task) {
-    if (!pakoModule) throw new Error("Worker not initialized");
+    await ensurePako();
 
     const response = await fetch(task.tarballUrl);
     if (!response.ok) {
@@ -275,7 +292,7 @@ const endpoint = {
   },
 
   async build(task) {
-    if (!esbuildEngine) throw new Error("Worker not initialized");
+    await ensureEsbuild();
 
     const fileMap = new Map();
     const entries = Object.entries(task.files);
