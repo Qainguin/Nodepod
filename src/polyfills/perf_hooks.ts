@@ -13,6 +13,7 @@ export const performance: Performance = globalThis.performance ?? ({
   clearMarks: () => {},
   clearMeasures: () => {},
   clearResourceTimings: () => {},
+  markResourceTiming: () => {}
 } as unknown as Performance);
 
 
