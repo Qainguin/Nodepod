@@ -131,6 +131,20 @@ describe("ScriptEngine", () => {
       expect(result.exports).toBe("function");
     });
 
+    it("exposes worker_threads markAsUncloneable for undici", () => {
+      const { engine } = createEngine();
+      const result = engine.execute(
+        [
+          'const workerThreads = require("node:worker_threads");',
+          "const target = {};",
+          "workerThreads.markAsUncloneable(target);",
+          "module.exports = typeof workerThreads.markAsUncloneable;",
+        ].join("\n"),
+        "/index.js",
+      );
+      expect(result.exports).toBe("function");
+    });
+
     it("requires JSON files", () => {
       const { engine } = createEngine({
         "/project/data.json": '{"key": "value"}',

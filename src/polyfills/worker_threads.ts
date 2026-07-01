@@ -364,6 +364,7 @@ export function receiveMessageOnPort(
 export const SHARE_ENV = Symbol.for("nodejs.worker_threads.SHARE_ENV");
 
 export function markAsUntransferable(_obj: unknown): void {}
+export function markAsUncloneable(_obj: unknown): void {}
 export function getEnvironmentData(_key: unknown): unknown {
   return undefined;
 }
@@ -383,6 +384,7 @@ export default {
   receiveMessageOnPort,
   SHARE_ENV,
   markAsUntransferable,
+  markAsUncloneable,
   getEnvironmentData,
   setEnvironmentData,
   setWorkerThreadForkCallback,
